@@ -29,11 +29,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Ghost")
 	int32 NetworkPort;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Ghost")
+	FString FallbackServerIP;
+
 protected:
 	void BeginPlay() override;
 
 private:
-	void GetServerAddress(FSocket* ReceiveSocket);
+	void GetServerAddress(FSocket* ReceiveSocket, int32 AttemptNumber = 0);
 
 	void SendMessageToSocketAndAddress(FString Message, FSocket* Socket, TSharedPtr<FInternetAddr> RemoteAddress) const;
 
@@ -41,6 +44,7 @@ private:
 	FSocket* mConnectionSocket;
 	TSharedPtr<FInternetAddr> mRemoteAddress;
 
+	static const int32 DISCOVERY_ATTEMPTS;
 	static const int32 NETWORK_PORT;
 	static const FString BROADCAST_CODE;
 	static const FString BROADCAST_SOCKET;

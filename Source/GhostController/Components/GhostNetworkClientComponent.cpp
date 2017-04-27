@@ -2,6 +2,7 @@
 #include "GhostNetworkClientComponent.h"
 
 
+const int32 UGhostNetworkClientComponent::DISCOVERY_ATTEMPTS = 10;
 const int32 UGhostNetworkClientComponent::NETWORK_PORT = 4000;
 const FString UGhostNetworkClientComponent::BROADCAST_CODE = "GHOST-CONTROLLER";
 const FString UGhostNetworkClientComponent::BROADCAST_SOCKET = "GhostControllerBroadcast";
@@ -10,7 +11,7 @@ const FString UGhostNetworkClientComponent::DATA_SOCKET = "GhostControllerData";
 
 
 UGhostNetworkClientComponent::UGhostNetworkClientComponent() :
-	mConnectionSocket(nullptr), NetworkPort(NETWORK_PORT)
+	mConnectionSocket(nullptr), NetworkPort(NETWORK_PORT), FallbackServerIP("127.0.0.1")
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
@@ -118,7 +119,7 @@ void UGhostNetworkClientComponent::SendMessageToSocketAndAddress(FString Message
 }
 
 
-void UGhostNetworkClientComponent::GetServerAddress(FSocket* ReceiveSocket)
+void UGhostNetworkClientComponent::GetServerAddress(FSocket* ReceiveSocket, int32 AttemptNumber)
 {
 	bool pending;
 	if (ReceiveSocket->HasPendingConnection(pending) && pending)
@@ -139,11 +140,19 @@ void UGhostNetworkClientComponent::GetServerAddress(FSocket* ReceiveSocket)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("No pending data"));
-		FTimerHandle handle;
-		GetWorld()->GetTimerManager().SetTimer(handle, [ReceiveSocket, this]()
+		if (AttemptNumber == DISCOVERY_ATTEMPTS)
 		{
-			GetServerAddress(ReceiveSocket);
-		}, 0.1, false);
+			Connect(FallbackServerIP);
+			UE_LOG(LogTemp, Log, TEXT("Connected to Fallback IP = %s"), *FallbackServerIP);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("Unable to find server"));
+			FTimerHandle handle;
+			GetWorld()->GetTimerManager().SetTimer(handle, [ReceiveSocket, AttemptNumber, this]()
+			{
+				GetServerAddress(ReceiveSocket, AttemptNumber + 1);
+			}, 0.1, false);
+		}
 	}
 }
